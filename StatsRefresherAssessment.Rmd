@@ -1,0 +1,173 @@
+---
+title: "StatsRefresherAssessment"
+author: "Anonymous"
+date: "2022-12-08"
+output: html_document
+---
+
+```{r, echo=FALSE, results='hide', include=FALSE}
+#Load revelant packages
+library(ggplot2)
+library(Sleuth3)
+library(tidyverse)
+library(cowplot)
+library(RColorBrewer)
+library(ggridges)
+library(svglite)
+
+#Examine data to understand structure and experimental design behind it
+head(case1402) 
+case1402
+str(case1402)
+summary(case1402)
+
+#William data log transformed for better analysis
+case1402$log_William <- log(case1402$William)
+
+```
+
+
+## Question 1
+
+N/A
+
+
+## Question 2
+
+#### Linear model 
+analysing log transformed William soy bean variety as function of water stress, sulphur dioxide and their interactions
+
+```{r, results='hide'}
+mod1 <- lm(log_William ~ Stress * SO2, case1402)
+```
+
+#### Default diagnostic plot to examine the assumptions of:
+
+##### Normality (qqplot)
+```{r}
+plot(mod1, 2) 
+```
+
+Q-Qplot of residuals can be used to determine if the data is normally distributed. If both sets of quantiles (standardised residuals vs generated theoretical quantiles) form a roughly straight line it indicates the data is normally distributed. Our plotted qqplot definitely indicates normal distribution as the residuals are plotted against the striped line. Two residuals at the tail-ends are larger and smaller than expected, but not noteworthy enough.
+
+##### Homogeneity of variance (residual vs fitted)
+```{r}
+plot(mod1, 1) 
+```
+
+Residual vs Fitted plots allows to investigate whether variance in Y remains constant over all values of X - allowing the discovery of outliers, non-linearity, and unequal error variance. For this plot:    1) No residuals stand out from the rest (maybe 26, 21, 11 - but not      significantly different enough) -> no considerable outliers 
+  2) the residuals form a horizontal band around 0 -> our Y values        are fitting our assumptions of linearity and equal variance 
+  3) the residuals are situated randomly around the line -> equal         error variance. 
+All three indicating homogeneity of variance.
+
+
+## Question 3
+
+#### Linear model analysing the yield of William soy bean variety yield as function of sulphur dioxide concentration difference
+
+```{r, fig.show='hide', results='hide'}
+mod2 <- lm(log_William ~ SO2, case1402) # Linear Model
+
+# Check assumption of normality and homogeneity of variance
+plot(mod2, 2) # Acceptable results shown
+plot(mod2, 1) # Acceptable results shown
+
+anova(mod2) # Significant relationship found
+```
+
+#### Figure visualising analysis of yield as a function of sulphur dioxide concentration 
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=5}
+
+# Make explanatory variable (SO2) a factor in another dataset used for plotting
+case1 <- case1402
+case1$SO2 <- as.factor(case1$SO2)
+
+# Graph one boxplot and one ridgeplot based on dataset
+boxplotA <- ggplot(case1, aes(x = SO2, y = log_William, fill = SO2)) +
+  geom_boxplot() +
+  geom_point(alpha = 0.5) +
+  xlab("SO2 [ppm]") + ylab("William soya bean variety yield") + 
+  ggtitle("Boxplot") +
+   scale_fill_manual("SO2 ppm", values = c("green", "yellow", "red"), labels = c("0 ppm", "0.02 ppm", "0.06 ppm")) +
+  coord_flip() +
+  labs(caption = 'Figure showing a Ridgeplot and Boxplot visualising the change in William soya bean yield under 
+  different levels of SO2 ppms, where an increase of SO2 concentration significantly results in a 
+  decrease in variety ')
+
+ridgeplotA <- ggplot(case1) +
+  geom_density_ridges(mapping = aes(x = log_William, y = SO2, fill = SO2)) +
+  xlab("William Soya Bean variety yield") + ylab("SO2 [ppm]") +
+  scale_fill_manual("SO2 ppm", values = c("green", "yellow", "red")) +
+  ggtitle("Ridgeplot") +
+  theme(panel.background = element_rect("white")) 
+
+# Make a grid of both plots
+plots <- plot_grid(ridgeplotA, boxplotA, labels = LETTERS, ncol=1)
+
+# Add title to grid
+title <- ggdraw() + 
+  draw_label("How sulphur dioxide concentration changes affects William soy bean 
+variety yield", fontface = 'bold', x = 0, hjust = 0) +
+  theme(plot.margin = margin(0, 0, 0, 7))
+
+plots_final <- plot_grid(title, plots, ncol = 1, rel_heights = c(0.1, 1))
+plots_final
+
+```
+
+
+## Question 4
+
+#### Create a linear model analysing the yield of William soy bean variety yield as a function of water stress difference
+
+```{r, results='hide', fig.show='hide'}
+mod3 <- lm(log_William ~ Stress, case1402) # Linear Model
+
+# Check assumption of normality and homogeneity of variance
+plot(mod3, 2) # Acceptable results shown
+plot(mod3, 1) # Acceptable results shown
+
+anova(mod3) # No significant relationship found
+
+confint(mod3) # To obtain 95% interval
+```
+
+#### Figure visualising analysis of yield as a function of water stress
+
+```{r, echo=FALSE}
+ggplot(case1402, aes(x = Stress, y = log_William, fill = Stress)) +
+  geom_boxplot(width = 0.5) +
+  geom_jitter(alpha = 0.5, width = 0.1) +
+  ylab("William Soya Bean variety yield") + xlab("Waterstress condition") +
+  scale_fill_manual("Waterstress condition", values = c("brown", "lightblue")) +
+  ggtitle("Boxplot of difference in William soya bean variety yield when water stressed
+          ") +
+  ylim(7.5, 8.75) +
+   labs(caption = 'Figure showing a Boxplot visualising the change in William soy bean yield under 
+   two different water stress conditions, where there is not statistically significant 
+   effect. Where the Stressed 95% interval = 7.945-8.207 and Well-watered 95% 
+   interval = 7.938-8.571')
+```
+
+
+## Question 5
+
+Data from cas1402 dataset in sleuth3 r package was used to create a linear model that represented the response of the yield (log transformed) of the William variety of soy beans to the main effects of sulphur dioxide and water stress and their interaction:
+
+$$linear~model~<-~~lm(William(log) \sim Stress * SO2)$$
+This model was then used in the R anova function as such:
+
+$$anova(linear model)$$
+Generating these results:
+```{r, fig.show='hide', echo=FALSE}
+mod1 <- lm(log_William ~ Stress * SO2, case1402) # Done at question 2
+
+anova(mod1)
+```
+
+Showing that both water stress and SO2 concentration has a significant effect on William soy bean yield change, but also that either variable does not interact with each other significantly when doing so.
+
+
+
+
